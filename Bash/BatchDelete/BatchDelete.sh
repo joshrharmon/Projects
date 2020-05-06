@@ -6,7 +6,7 @@ normal=$(tput sgr0)
 keeppath=0				# Determines if user wants to keep path across deletions
 validsearch=0			# Determines if query exists in filesystem
 validpath=0				# Determmines if path exists in filesystem
-numfilesfound=0		# Keeps track of number of files found
+numfilesfound=0			# Keeps track of number of files found
 
 : '
 Catch-all function that handles all user-input
