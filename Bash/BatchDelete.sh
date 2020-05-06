@@ -3,22 +3,10 @@
 bold=$(tput bold)
 normal=$(tput sgr0)
 
-sessionactive=1		# Keeps track if user is still deleting files
 keeppath=0			# Determines if user wants to keep path across deletions
 validsearch=0		# Determines if query exists in filesystem
 validpath=0			# Determmines if path exists in filesystem
 numfilesfound=0		# Keeps track of number of files found
-savecontinue=0		# Keeps track if user would like to continuously delete with no prompt
-savekeeppath=0		# Keeps track if user would like to continue searching the initial path
-
-reset() 
-{
-	numfilesfound=0
-	validpath=0
-	validsearch=0
-	deletepath=""
-	filename=""
-}
 
 : '
 Catch-all function that handles all user-input
@@ -38,11 +26,11 @@ userInputHandler()
 	# Handle search query validation
 	elif [[ $2 == "search" ]]; then
 		if  [[ $1 == "back" ]]; then
+			keeppath=0					# Reset choice
 			pathprompt
 		elif [[ -n $(find "$initpath" -type f -iname "*$1*") ]]; then
 			validsearch=1															# Set search as valid
 			numfilesfound="$(find "$initpath" -type f -iname "*$1*" | wc -l)"		# Count number of files found
-			echo "Nums: $numfilesfound"
 			deletepath="$(find "$initpath" -type f -iname "*$1*" -printf "%h\n")"	# Save valid path
 			filename="$(find "$initpath" -type f -iname "*$1*" -printf "%f\n")"		# Save full filename
 		else
@@ -70,11 +58,11 @@ userInputHandler()
 						printf ": %s failed to delete. Error code %d.\n\n" "$filename" "$?"
 					;;
 				esac
-				continuesession
+				keeppath
 			;;
 			N | n)
 				printf ": Not deleting ${bold}%s ${normal}\n\n" "$filename"
-				continuesession
+				keeppath
 			;;
 			"back")
 				queryprompt
@@ -84,32 +72,14 @@ userInputHandler()
 				deletefile
 			;;
 		esac
-
-	# Handle continue choice
-	elif [[ $2 == "continue" ]] && [[ $savecontinue == 0 ]]; then	
-		case $1 in
-			Y | y)
-				keeppath
-			;;
-			N | n)
-				sessionactive=0
-				echo ": Successfully stopped session."
-			;;
-			"back")
-				deletefile
-			;;
-			*)
-				 printf ": Invalid choice. Try again.\n\n"
- 	             continuesession
-			;;
-		esac
 	
 	# Handle keep path choice
 	elif [[ $2 == "keep" ]]; then
-		validsearch=0
 		case $1 in
 			Y | y)
 				echo ": Continuing to search path $initpath"
+				keepchoice=1
+				keeppath
 			;;
 			N | n)
 				printf "::: Please specify a new path ('quit' to exit, 'back' to go back): "
@@ -117,7 +87,8 @@ userInputHandler()
 				userInputHandler $initpath "path"
 			;;
 			"back")
-				continuesession
+				echo ": Can't undo deletion of file if deleted."
+				deletefile
 			;;
 			*)
 				printf ": Invalid choice. Try again.\n\n"
@@ -132,7 +103,8 @@ deletefile()
 	# Only allow 1 file deletetion at a time
 	if [[ $numfilesfound != 1 ]]; then
 		echo ": Search not specific enough, more than one file found. Try again."
-		queryprompt
+		validsearch=0
+		searchvalidate
 	fi
 
 	# Show path to user to confirm/deny deletion for each file found
@@ -141,20 +113,19 @@ deletefile()
 	userInputHandler "$deletechoice" "delete"
 }
 
-continuesession() 
-{
-	# Ask to continue deletion session
-	printf "::: Continue session? ('quit' to exit, 'back' to go back) [Y/N]: "
-	read continuechoice
-	userInputHandler $continuechoice "continue"
-}
-
 keeppath() 
 {
 	validsearch=0
-	printf "Keep searching specified path? ('quit' to exit, 'back' to go back) [Y/N]: "
-	read keepchoice
-	userInputHandler $keepchoice "keep"
+	case $keepchoice in
+		1)
+			queryprompt
+			;;
+		0 | *)
+			printf "Keep searching specified path? ('quit' to exit, 'back' to go back) [Y/N]: "
+			read keepchoice
+			userInputHandler $keepchoice "keep"
+			;;
+	esac
 }
 
 pathprompt() 
@@ -171,31 +142,29 @@ queryprompt()
 	userInputHandler "$query" "search"
 }
 
-saveprompt() 
-{
-	printf "::: Save your choice? ('quit' to exit, 'back' to go back): "
-	read savechoice
-	userInputHandler "$savechoice" "save"
-}
-
-# While session is active, continue to prompt user to delete files
-while [[ $sessionactive -eq 1 ]]; do	
-	
-	# While path is blank or is not valid, keep looping unless user wants to quit
+# While path is blank or is not valid, keep looping unless user wants to quit
+pathvalidate() {
 	while [[ $validpath -eq 0 ]]; do
 		pathprompt
 	done
+}
 
-	# While query is blank or DNE, keep looping unless user wants to quit	
+# While query is blank or DNE, keep looping unless user wants to quit
+searchvalidate() {
 	while [[ $validsearch -eq 0 ]]; do
 		queryprompt
 	done
-
+	
 	# Show amount of files found
 	echo ": Found $numfilesfound file(s) matching your search."
-
 	
 	# Start delete file routine
 	deletefile
+}
+
+# Unless user hasn't typed 'quit', continue to prompt user to delete files
+while true; do	
+	pathvalidate
+	searchvalidate
 done
 exit 0
