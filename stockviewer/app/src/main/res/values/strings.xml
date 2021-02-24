@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">StockViewer</string>
+    <string name="app_title">Stock name/symbol</string>
+    <string name="clear_button">Clear</string>
+    <string name="quote_button">Get quote</string>
+    <string name="favorites_title">Favorites</string>
+    <string name="autorefresh_switch">Auto-refresh</string>
+    <string name="current_stock_title">Current Stock Information:</string>
+    <string name="historical_stock_title">Historical Stock Information (1 Year Ago):</string>
+    <string name="select_date">Show Data from 1 year ago</string>
+    <string name="favorite_stock">Favorite this stock</string>
+    <string name="clear_favs">Clear Favorites</string>
+</resources>
